@@ -3,41 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiContabilidad - Cloud & Taxes Edition</title>
-    <!-- Tailwind CSS para diseño responsivo -->
+    <title>MiContabilidad - Gestión Profesional</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js para gráficos financieros -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
     <style>
         body { font-family: 'Inter', sans-serif; overflow: hidden; }
-        .nav-item.active {
-            background-color: #eff6ff;
-            color: #2563eb;
-            border-right: 4px solid #2563eb;
-        }
+        .nav-item.active { background-color: #eff6ff; color: #2563eb; border-right: 4px solid #2563eb; }
+        #loading-overlay { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s ease; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        #loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
@@ -46,606 +23,299 @@
     <!-- Pantalla de Carga -->
     <div id="loading-overlay">
         <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-gray-500 font-medium">Sincronizando con la nube...</p>
+        <p id="loading-text" class="text-gray-500 font-medium">Iniciando sistema...</p>
     </div>
 
-    <!-- Barra Lateral (Desktop) -->
+    <!-- Sidebar -->
     <aside class="bg-white w-64 hidden md:flex flex-col shadow-xl z-10">
         <div class="p-6 border-b flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
                 <i class="fa-solid fa-wallet text-xl"></i>
             </div>
             <div>
-                <h1 class="text-lg font-bold text-gray-900 leading-none">Contabilidad</h1>
-                <p class="text-[10px] text-blue-600 font-bold uppercase tracking-tighter">Versión Cloud</p>
+                <h1 class="text-lg font-bold text-gray-900 leading-none">MiConta</h1>
+                <p id="cloud-status-label" class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Modo Local</p>
             </div>
         </div>
-        
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-            <p class="px-4 text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Dashboards</p>
-            <button onclick="switchView('dashboard-total')" id="nav-dashboard-total" class="nav-item active w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
-                <i class="fa-solid fa-chart-line w-5 text-center"></i> Global
+        <nav class="flex-1 p-4 space-y-1">
+            <button onclick="switchView('dashboard-total')" id="nav-dashboard-total" class="nav-item active w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg">
+                <i class="fa-solid fa-chart-line w-5"></i> Global
             </button>
-            <button onclick="switchView('dashboard-monthly')" id="nav-dashboard-monthly" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
-                <i class="fa-solid fa-calendar-days w-5 text-center"></i> Mensual
+            <button onclick="switchView('dashboard-monthly')" id="nav-dashboard-monthly" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg">
+                <i class="fa-solid fa-calendar-days w-5"></i> Mensual
             </button>
-            
-            <p class="px-4 text-[10px] font-bold text-gray-400 uppercase mt-6 mb-2 tracking-widest">Gestión</p>
-            <button onclick="switchView('transactions')" id="nav-transactions" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
-                <i class="fa-solid fa-receipt w-5 text-center"></i> Movimientos
+            <button onclick="switchView('transactions')" id="nav-transactions" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg">
+                <i class="fa-solid fa-list-ul w-5"></i> Movimientos
             </button>
-            <button onclick="switchView('invoices')" id="nav-invoices" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
-                <i class="fa-solid fa-box-archive w-5 text-center"></i> Facturas
+            <button onclick="switchView('invoices')" id="nav-invoices" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg">
+                <i class="fa-solid fa-file-invoice w-5"></i> Facturas
             </button>
         </nav>
-
-        <div class="p-4 border-t bg-gray-50">
-            <p class="text-[9px] font-bold text-gray-400 uppercase mb-1">Tu ID Cloud</p>
-            <code id="user-display-id" class="text-[9px] block bg-white p-2 rounded border border-gray-200 text-blue-500 font-mono break-all">Iniciando...</code>
-        </div>
     </aside>
 
-    <!-- Área Principal -->
+    <!-- Principal -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
-        
-        <!-- Cabecera -->
         <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6 z-20">
-            <div class="flex items-center gap-4">
-                <button onclick="document.querySelector('aside').classList.toggle('hidden');" class="md:hidden text-gray-600">
-                    <i class="fa-solid fa-bars text-xl"></i>
-                </button>
-                <h2 id="header-ctx" class="font-bold text-gray-700 hidden sm:block">Dashboard Global</h2>
-            </div>
-            
-            <div class="flex items-center gap-4">
-                <div id="sync-status" class="hidden flex items-center gap-2 text-[10px] bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-cloud-arrow-up animate-bounce"></i> En Nube
-                </div>
-                <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Nuevo Registro</span>
+            <h2 id="header-ctx" class="font-bold text-gray-700">Resumen General</h2>
+            <div class="flex items-center gap-3">
+                <div id="sync-icon" class="hidden text-green-500 text-xs font-bold uppercase"><i class="fa-solid fa-cloud-check"></i> Nube OK</div>
+                <button onclick="openModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 transition">
+                    + Nuevo Registro
                 </button>
             </div>
         </header>
 
-        <!-- Contenido dinámico -->
-        <main class="flex-1 overflow-y-auto p-4 md:p-8" id="main-content">
-            
-            <!-- VISTA: GLOBAL -->
+        <main class="flex-1 overflow-y-auto p-6" id="main-content">
+            <!-- VISTAS (Contenido similar a versiones anteriores pero optimizado) -->
             <div id="view-dashboard-total" class="fade-in space-y-6">
                 <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ingresos</p>
-                        <p class="text-xl font-bold text-gray-900 mt-1" id="global-income">$0.00</p>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase">Ingresos</p>
+                        <p class="text-xl font-bold text-gray-900" id="g-inc">$0.00</p>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Gastos</p>
-                        <p class="text-xl font-bold text-gray-900 mt-1" id="global-expense">$0.00</p>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase">Gastos</p>
+                        <p class="text-xl font-bold text-gray-900" id="g-exp">$0.00</p>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-blue-500">Neto</p>
-                        <p class="text-xl font-bold text-blue-600 mt-1" id="global-balance">$0.00</p>
+                        <p class="text-[10px] font-bold text-blue-500 uppercase">Balance</p>
+                        <p class="text-xl font-bold text-blue-600" id="g-bal">$0.00</p>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">IVA (13%)</p>
-                        <p class="text-xl font-bold text-purple-600 mt-1" id="global-iva">$0.00</p>
+                        <p class="text-[10px] font-bold text-purple-400 uppercase">IVA (13%)</p>
+                        <p class="text-xl font-bold text-purple-600" id="g-iva">$0.00</p>
                     </div>
-                    <div class="bg-blue-600 p-4 rounded-xl shadow-lg border border-blue-500 text-white">
-                        <p class="text-[10px] font-bold opacity-80 uppercase tracking-widest">Renta (2%)</p>
-                        <p class="text-xl font-bold mt-1" id="global-renta">$0.00</p>
+                    <div class="bg-blue-600 p-4 rounded-xl shadow-md text-white">
+                        <p class="text-[10px] font-bold opacity-80 uppercase">Renta (2%)</p>
+                        <p class="text-xl font-bold" id="g-ren">$0.00</p>
                     </div>
                 </div>
-
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm lg:col-span-2 min-h-[350px]">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-area text-blue-500"></i> Flujo de Efectivo</h3>
-                        <div class="h-64 relative w-full"><canvas id="globalChart"></canvas></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm lg:col-span-2 min-h-[300px]">
+                        <canvas id="globalChart"></canvas>
                     </div>
                     <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-gray-400"></i> Recientes</h3>
-                        <div id="global-recent-list" class="space-y-3"></div>
+                        <h3 class="font-bold mb-4">Recientes</h3>
+                        <div id="recent-list" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- VISTA: MENSUAL -->
+            <!-- VISTA MENSUAL -->
             <div id="view-dashboard-monthly" class="hidden fade-in space-y-6">
-                <div class="flex items-center justify-between mb-2">
-                    <h2 class="font-bold text-gray-700 uppercase text-sm tracking-widest">Análisis por Periodo</h2>
-                    <input type="month" id="month-selector" onchange="updateMonthly()" class="px-3 py-1.5 border rounded-lg text-sm font-bold bg-white outline-none cursor-pointer hover:border-blue-500 transition shadow-sm">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-500 uppercase text-xs">Filtro Mensual</h3>
+                    <input type="month" id="month-selector" onchange="renderAll()" class="border p-1 rounded font-bold text-sm">
                 </div>
-                
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase">Ingresos Mes</p>
-                        <p class="text-xl font-bold text-gray-900" id="month-income">$0.00</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase">Gastos Mes</p>
-                        <p class="text-xl font-bold text-gray-900" id="month-expense">$0.00</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-blue-500 uppercase">Balance Mes</p>
-                        <p class="text-xl font-bold text-blue-600" id="month-balance">$0.00</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-bold text-purple-400 uppercase">IVA Mes</p>
-                        <p class="text-xl font-bold text-purple-600" id="month-iva">$0.00</p>
-                    </div>
-                    <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
-                        <p class="text-[10px] font-bold text-blue-400 uppercase">Renta Mes</p>
-                        <p class="text-xl font-bold text-blue-800" id="month-renta">$0.00</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <h3 class="font-bold text-gray-800 mb-6">Gastos por Categoría</h3>
-                        <div class="h-64 relative w-full flex justify-center"><canvas id="monthCatChart"></canvas></div>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <h3 class="font-bold text-gray-800 mb-4">Detalle de este Mes</h3>
-                        <div id="month-list" class="space-y-2 max-h-[300px] overflow-y-auto pr-2"></div>
-                    </div>
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="monthly-stats">
+                    <!-- Dinámico -->
                 </div>
             </div>
 
-            <!-- VISTA: TRANSACCIONES -->
+            <!-- VISTA TABLA -->
             <div id="view-transactions" class="hidden fade-in">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="p-6 border-b flex justify-between items-center bg-gray-50/50">
-                        <h3 class="font-bold text-gray-800">Historial Detallado de Operaciones</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs min-w-[1100px]">
-                            <thead class="bg-gray-100 text-gray-500 font-bold uppercase tracking-tighter">
-                                <tr>
-                                    <th class="px-6 py-4">Fecha</th>
-                                    <th class="px-6 py-4">Descripción</th>
-                                    <th class="px-6 py-4 text-center">Tipo</th>
-                                    <th class="px-6 py-4 text-right">Bruto</th>
-                                    <th class="px-6 py-4 text-right">IVA (13%)</th>
-                                    <th class="px-6 py-4 text-right">Renta (2%)</th>
-                                    <th class="px-6 py-4 text-right">Ganancia Neta</th>
-                                    <th class="px-6 py-4 text-center">Doc</th>
-                                    <th class="px-6 py-4 text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tx-table-body" class="divide-y divide-gray-100"></tbody>
-                        </table>
-                    </div>
+                <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-50 text-gray-500 font-bold uppercase">
+                            <tr>
+                                <th class="px-4 py-3">Fecha</th>
+                                <th class="px-4 py-3">Descripción</th>
+                                <th class="px-4 py-3 text-right">Monto</th>
+                                <th class="px-4 py-3 text-right text-gray-400 italic">IVA</th>
+                                <th class="px-4 py-3 text-right text-gray-400 italic">Renta</th>
+                                <th class="px-4 py-3 text-right font-bold">Neto</th>
+                                <th class="px-4 py-3 text-center">Doc</th>
+                                <th class="px-4 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tx-table" class="divide-y"></tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- VISTA: FACTURAS -->
+            <!-- VISTA FACTURAS -->
             <div id="view-invoices" class="hidden fade-in">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]">
-                    <div class="p-6 border-b flex justify-between items-center bg-gray-50/50">
-                        <h3 class="font-bold text-gray-800">Bóveda Digital de Facturas</h3>
-                        <span class="text-[10px] text-gray-400 italic">Sincronizado con Cloud Storage</span>
-                    </div>
-                    <div id="invoice-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-6"></div>
-                </div>
+                <div id="invoice-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
             </div>
-
         </main>
     </div>
 
-    <!-- MODAL DE REGISTRO -->
-    <div id="tx-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all p-6 mx-4">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-gray-800" id="modal-title">Registrar Operación</h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-circle-xmark text-2xl"></i></button>
-            </div>
-
+    <!-- MODAL -->
+    <div id="tx-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4" id="m-title">Nuevo Registro</h3>
             <form id="tx-form" class="space-y-4">
                 <input type="hidden" id="edit-id">
-                
-                <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
-                    <label class="cursor-pointer">
-                        <input type="radio" name="type" id="type-income" value="income" class="peer hidden" checked>
-                        <div class="py-2 text-center text-sm font-bold rounded-md peer-checked:bg-white peer-checked:text-green-600 peer-checked:shadow-sm transition-all text-gray-500">INGRESO</div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="type" id="type-expense" value="expense" class="peer hidden">
-                        <div class="py-2 text-center text-sm font-bold rounded-md peer-checked:bg-white peer-checked:text-red-600 peer-checked:shadow-sm transition-all text-gray-500">GASTO</div>
-                    </label>
+                <div class="flex bg-gray-100 p-1 rounded-lg">
+                    <button type="button" onclick="setType('income')" id="btn-inc" class="flex-1 py-2 rounded-md font-bold text-xs bg-white text-green-600 shadow-sm">INGRESO</button>
+                    <button type="button" onclick="setType('expense')" id="btn-exp" class="flex-1 py-2 rounded-md font-bold text-xs text-gray-500">GASTO</button>
+                    <input type="hidden" id="f-type" value="income">
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Monto ($)</label>
-                        <input type="number" step="0.01" required id="amount" placeholder="0.00" class="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Fecha</label>
-                        <input type="date" required id="date" class="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    </div>
+                    <input type="number" step="0.01" id="f-amount" placeholder="Monto $" class="border p-2 rounded-lg font-bold" required>
+                    <input type="date" id="f-date" class="border p-2 rounded-lg text-sm" required>
                 </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Descripción</label>
-                    <input type="text" required id="description" placeholder="¿En qué consiste el movimiento?" class="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="f-desc" placeholder="Descripción" class="w-full border p-2 rounded-lg" required>
+                <select id="f-cat" class="w-full border p-2 rounded-lg bg-white text-sm">
+                    <option>Ventas</option><option>Servicios</option><option>Suministros</option><option>Otros</option>
+                </select>
+                <div class="border-t pt-4">
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Comprobante</label>
+                    <input type="file" id="f-file" class="text-xs w-full" accept="image/*,.pdf" capture="environment">
                 </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Categoría</label>
-                    <select id="category" class="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
-                        <option value="Ventas">Ventas</option>
-                        <option value="Servicios">Servicios Prof.</option>
-                        <option value="Suministros">Suministros / Papelería</option>
-                        <option value="Alquiler">Alquiler / Servicios</option>
-                        <option value="Transporte">Transporte</option>
-                        <option value="Otros">Otros</option>
-                    </select>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-200 py-3 rounded-xl font-bold">Cerrar</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button>
                 </div>
-
-                <div class="pt-4 border-t">
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Comprobante (Opcional)</label>
-                    <label class="w-full flex items-center justify-center gap-3 px-4 py-4 bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl cursor-pointer hover:bg-blue-100 transition group">
-                        <i class="fa-solid fa-camera text-blue-400 group-hover:scale-110 transition-transform"></i>
-                        <span id="file-text" class="text-xs font-bold text-blue-600">Tomar foto o elegir</span>
-                        <input type="file" id="file-input" class="hidden" accept="image/*,.pdf" capture="environment">
-                    </label>
-                    <p id="file-name" class="text-[9px] text-gray-400 mt-1 text-center italic"></p>
-                </div>
-
-                <button type="submit" id="save-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200">
-                    Sincronizar con Nube
-                </button>
             </form>
         </div>
     </div>
 
-    <!-- Firebase SDK & App Logic -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // INSTRUCCIONES PARA LA NUBE:
+        // Si quieres conectar tu propia base de datos externa, crea un proyecto en console.firebase.google.com
+        // y pega tu configuración aquí abajo en la variable 'manualConfig'.
+        const manualConfig = null; 
 
-        // Global Variables
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-conta-app-unique';
+        // --- Lógica del Sistema ---
+        let transactions = JSON.parse(localStorage.getItem('my_conta_data')) || [];
+        let invoices = JSON.parse(localStorage.getItem('my_conta_invs')) || [];
+        let globalChart = null;
 
-        let currentUser = null;
-        let transactions = [];
-        let invoices = [];
-        let charts = { global: null, category: null };
-        let tempFile = null;
+        const format = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 
-        const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        // Al inicio, quitamos la pantalla de carga inmediatamente si estamos en modo local
+        window.onload = () => {
+            document.getElementById('loading-overlay').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 500);
+            document.getElementById('f-date').valueAsDate = new Date();
+            renderAll();
+        };
 
-        // --- AUTH ---
-        async function startApp() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        }
+        window.setType = (t) => {
+            document.getElementById('f-type').value = t;
+            document.getElementById('btn-inc').className = t === 'income' ? 'flex-1 py-2 rounded-md font-bold text-xs bg-white text-green-600 shadow-sm' : 'flex-1 py-2 rounded-md font-bold text-xs text-gray-500';
+            document.getElementById('btn-exp').className = t === 'expense' ? 'flex-1 py-2 rounded-md font-bold text-xs bg-white text-red-600 shadow-sm' : 'flex-1 py-2 rounded-md font-bold text-xs text-gray-500';
+        };
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('user-display-id').textContent = user.uid;
-                setupListeners();
-                setTimeout(() => {
-                    document.getElementById('loading-overlay').style.opacity = '0';
-                    setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 500);
-                }, 1000);
-            }
-        });
-
-        // --- CLOUD SYNC ---
-        function setupListeners() {
-            if (!currentUser) return;
-
-            const txCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions');
-            onSnapshot(txCol, (snap) => {
-                showSyncIcon();
-                transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                refreshUI();
-            });
-
-            const invCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices');
-            onSnapshot(invCol, (snap) => {
-                showSyncIcon();
-                invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                refreshUI();
-            });
-        }
-
-        function showSyncIcon() {
-            const el = document.getElementById('sync-status');
-            el.classList.remove('hidden');
-            setTimeout(() => el.classList.add('hidden'), 2500);
-        }
-
-        // --- UI REFRESH ---
-        function refreshUI() {
-            updateGlobal();
-            updateMonthly();
-            renderTxTable();
+        window.renderAll = () => {
+            save();
+            renderDashboard();
+            renderTransactions();
             renderInvoices();
+        };
+
+        function save() {
+            localStorage.setItem('my_conta_data', JSON.stringify(transactions));
+            localStorage.setItem('my_conta_invs', JSON.stringify(invoices));
         }
 
-        function updateGlobal() {
+        function renderDashboard() {
             let inc = 0, exp = 0;
             transactions.forEach(t => t.type === 'income' ? inc += t.amount : exp += t.amount);
-            
             const bal = inc - exp;
-            const iva = bal > 0 ? bal * 0.13 : 0;
-            const ren = inc * 0.02;
+            
+            document.getElementById('g-inc').innerText = format(inc);
+            document.getElementById('g-exp').innerText = format(exp);
+            document.getElementById('g-bal').innerText = format(bal);
+            document.getElementById('g-iva').innerText = format(bal > 0 ? bal * 0.13 : 0);
+            document.getElementById('g-ren').innerText = format(inc * 0.02);
 
-            document.getElementById('global-income').textContent = formatMoney(inc);
-            document.getElementById('global-expense').textContent = formatMoney(exp);
-            document.getElementById('global-balance').textContent = formatMoney(bal);
-            document.getElementById('global-iva').textContent = formatMoney(iva);
-            document.getElementById('global-renta').textContent = formatMoney(ren);
-
-            renderRecent(transactions, 'global-recent-list');
-            updateGlobalChart(inc, exp);
-        }
-
-        function updateMonthly() {
-            const picker = document.getElementById('month-selector');
-            if (!picker.value) {
-                const now = new Date();
-                picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            }
-
-            const [year, month] = picker.value.split('-').map(Number);
-            const filtered = transactions.filter(t => {
-                const d = new Date(t.date);
-                return d.getUTCFullYear() === year && (d.getUTCMonth() + 1) === month;
+            const ctx = document.getElementById('globalChart').getContext('2d');
+            if(globalChart) globalChart.destroy();
+            globalChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: ['Total'], datasets: [{label:'Ingresos', data:[inc], backgroundColor:'#22c55e'},{label:'Gastos', data:[exp], backgroundColor:'#ef4444'}]},
+                options: { responsive: true, maintainAspectRatio: false }
             });
 
-            let inc = 0, exp = 0;
-            const cats = {};
-            filtered.forEach(t => {
-                if(t.type === 'income') inc += t.amount;
-                else {
-                    exp += t.amount;
-                    cats[t.category] = (cats[t.category] || 0) + t.amount;
-                }
-            });
-
-            const bal = inc - exp;
-            document.getElementById('month-income').textContent = formatMoney(inc);
-            document.getElementById('month-expense').textContent = formatMoney(exp);
-            document.getElementById('month-balance').textContent = formatMoney(bal);
-            document.getElementById('month-iva').textContent = formatMoney(bal > 0 ? bal * 0.13 : 0);
-            document.getElementById('month-renta').textContent = formatMoney(inc * 0.02);
-
-            renderRecent(filtered, 'month-list');
-            updateCatChart(cats);
-        }
-
-        function renderRecent(data, target) {
-            const el = document.getElementById(target);
-            const list = [...data].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 8);
-            
-            if(list.length === 0) {
-                el.innerHTML = '<div class="text-center py-10 text-xs text-gray-400">Sin movimientos</div>';
-                return;
-            }
-
-            el.innerHTML = list.map(t => `
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-transparent hover:border-blue-100 transition shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border">
-                            <i class="fa-solid ${t.type === 'income' ? 'fa-arrow-up text-green-500' : 'fa-arrow-down text-red-500'} text-[10px]"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-gray-800 leading-none mb-1">${t.description}</p>
-                            <p class="text-[9px] text-gray-400 uppercase font-bold">${t.date}</p>
-                        </div>
-                    </div>
-                    <span class="text-sm font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">${formatMoney(t.amount)}</span>
+            const list = document.getElementById('recent-list');
+            list.innerHTML = transactions.slice(-5).reverse().map(t => `
+                <div class="flex justify-between text-xs p-2 bg-gray-50 rounded">
+                    <span>${t.desc}</span>
+                    <span class="font-bold ${t.type==='income'?'text-green-600':'text-red-600'}">${format(t.amount)}</span>
                 </div>
             `).join('');
         }
 
-        function renderTxTable() {
-            const el = document.getElementById('tx-table-body');
-            const list = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
-
-            el.innerHTML = list.map(t => {
-                const hasInv = invoices.some(i => i.transactionId == t.id);
+        function renderTransactions() {
+            const body = document.getElementById('tx-table');
+            body.innerHTML = transactions.map(t => {
                 const isInc = t.type === 'income';
                 const iva = isInc ? t.amount * 0.13 : 0;
                 const ren = isInc ? t.amount * 0.02 : 0;
                 const net = isInc ? (t.amount - iva - ren) : -t.amount;
+                const hasInv = invoices.some(i => i.txId === t.id);
 
-                return `
-                    <tr class="group hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 whitespace-nowrap">${t.date}</td>
-                        <td class="px-6 py-4 font-bold text-gray-800">${t.description}</td>
-                        <td class="px-6 py-4 text-center">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${isInc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${t.type}</span>
-                        </td>
-                        <td class="px-6 py-4 text-right font-medium">${formatMoney(t.amount)}</td>
-                        <td class="px-6 py-4 text-right text-gray-400 italic">${isInc ? formatMoney(iva) : '-'}</td>
-                        <td class="px-6 py-4 text-right text-gray-400 italic">${isInc ? formatMoney(ren) : '-'}</td>
-                        <td class="px-6 py-4 text-right font-bold ${isInc ? 'text-blue-600' : 'text-red-500'}">${formatMoney(net)}</td>
-                        <td class="px-6 py-4 text-center">
-                            ${hasInv ? `<button onclick="window.app_switchView('invoices')" class="text-blue-500 animate-pulse"><i class="fa-solid fa-paperclip"></i></button>` : `<i class="fa-solid fa-minus text-gray-200"></i>`}
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <div class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition">
-                                <button onclick="window.app_edit('${t.id}')" class="p-1.5 text-gray-400 hover:text-blue-600"><i class="fa-solid fa-pencil"></i></button>
-                                <button onclick="window.app_delete('${t.id}')" class="p-1.5 text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                return `<tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">${t.date}</td>
+                    <td class="px-4 py-3 font-bold">${t.desc}</td>
+                    <td class="px-4 py-3 text-right">${format(t.amount)}</td>
+                    <td class="px-4 py-3 text-right text-gray-400">${isInc?format(iva):'-'}</td>
+                    <td class="px-4 py-3 text-right text-gray-400">${isInc?format(ren):'-'}</td>
+                    <td class="px-4 py-3 text-right font-bold ${isInc?'text-blue-600':'text-red-500'}">${format(net)}</td>
+                    <td class="px-4 py-3 text-center">${hasInv?'<i class="fa-solid fa-file-circle-check text-blue-500"></i>':'-'}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="window.app_del('${t.id}')" class="text-red-400"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
             }).join('');
         }
 
         function renderInvoices() {
-            const el = document.getElementById('invoice-grid');
-            if(invoices.length === 0) {
-                el.innerHTML = '<div class="col-span-full py-20 text-center text-gray-400 flex flex-col items-center"><i class="fa-solid fa-inbox text-4xl mb-2 opacity-20"></i> Bóveda vacía</div>';
-                return;
-            }
-            el.innerHTML = invoices.map(inv => {
-                const tx = transactions.find(t => t.id == inv.transactionId);
-                return `
-                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-gray-50 rounded flex items-center justify-center text-red-500 shadow-inner">
-                                <i class="fa-solid fa-file-pdf text-xl"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-gray-800 break-all">${inv.name}</p>
-                                <p class="text-[10px] text-gray-400">Asociado: ${tx ? tx.description : 'Eliminado'}</p>
-                            </div>
-                        </div>
-                        <button onclick="window.app_delInv('${inv.id}')" class="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition">
-                            <i class="fa-solid fa-circle-minus"></i>
-                        </button>
+            const grid = document.getElementById('invoice-grid');
+            grid.innerHTML = invoices.map(i => `
+                <div class="bg-white p-3 rounded-lg shadow-sm border flex items-center gap-3">
+                    <i class="fa-solid fa-file-invoice text-blue-500 text-xl"></i>
+                    <div class="text-[10px] overflow-hidden">
+                        <p class="font-bold truncate">${i.name}</p>
+                        <p class="text-gray-400">${i.date}</p>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `).join('');
         }
 
-        // --- CHARTS ---
-        function updateGlobalChart(i, e) {
-            const ctx = document.getElementById('globalChart').getContext('2d');
-            if(charts.global) charts.global.destroy();
-            charts.global = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['HISTÓRICO'],
-                    datasets: [
-                        { label: 'INGRESOS', data: [i], backgroundColor: '#22c55e', borderRadius: 10 },
-                        { label: 'GASTOS', data: [e], backgroundColor: '#ef4444', borderRadius: 10 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        function updateCatChart(map) {
-            const ctx = document.getElementById('monthCatChart').getContext('2d');
-            if(charts.category) charts.category.destroy();
-            const labels = Object.keys(map);
-            const data = Object.values(map);
-            if(labels.length === 0) {
-                charts.category = new Chart(ctx, { type: 'pie', data: { labels: ['Sin Gastos'], datasets: [{ data: [1], backgroundColor: ['#f3f4f6'] }] } });
-                return;
-            }
-            charts.category = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels,
-                    datasets: [{ data, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'], borderWidth: 0 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } } } }
-            });
-        }
-
-        // --- CORE ACTIONS ---
-        window.app_switchView = (v) => {
+        window.switchView = (v) => {
             ['dashboard-total', 'dashboard-monthly', 'transactions', 'invoices'].forEach(id => {
                 document.getElementById(`view-${id}`).classList.add('hidden');
                 document.getElementById(`nav-${id}`).classList.remove('active');
             });
-            document.getElementById(`view-${v}`).classList.add('fade-in');
             document.getElementById(`view-${v}`).classList.remove('hidden');
             document.getElementById(`nav-${v}`).classList.add('active');
-            document.getElementById('header-ctx').innerText = v.split('-').join(' ').toUpperCase();
         };
 
-        window.openModal = () => {
-            document.getElementById('tx-modal').classList.remove('hidden');
-            document.getElementById('modal-title').innerText = "Nuevo Registro";
-            document.getElementById('save-btn').innerText = "Sincronizar con Nube";
-            document.getElementById('edit-id').value = "";
-            document.getElementById('file-text').innerText = "Tomar foto o elegir";
-            document.getElementById('file-name').innerText = "";
-            tempFile = null;
-        };
+        window.openModal = () => { document.getElementById('tx-modal').classList.remove('hidden'); };
+        window.closeModal = () => { document.getElementById('tx-modal').classList.add('hidden'); document.getElementById('tx-form').reset(); };
 
-        window.closeModal = () => {
-            document.getElementById('tx-modal').classList.add('hidden');
-            document.getElementById('tx-form').reset();
-            document.getElementById('date').valueAsDate = new Date();
-        };
-
-        window.app_edit = (id) => {
-            const t = transactions.find(x => x.id === id);
-            if(!t) return;
-            window.openModal();
-            document.getElementById('modal-title').innerText = "Editar Movimiento";
-            document.getElementById('save-btn').innerText = "Actualizar Cambios";
-            document.getElementById('edit-id').value = t.id;
-            document.getElementById('amount').value = t.amount;
-            document.getElementById('date').value = t.date;
-            document.getElementById('description').value = t.description;
-            document.getElementById('category').value = t.category;
-            if(t.type === 'income') document.getElementById('type-income').checked = true;
-            else document.getElementById('type-expense').checked = true;
-        };
-
-        window.app_delete = async (id) => {
-            if(!confirm('¿Eliminar de la nube?')) return;
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions', id));
-            invoices.filter(i => i.transactionId === id).forEach(async i => {
-                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices', i.id));
-            });
-        };
-
-        window.app_delInv = async (id) => {
-            if(!confirm('¿Eliminar documento?')) return;
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices', id));
-        };
-
-        document.getElementById('file-input').addEventListener('change', (e) => {
-            if(e.target.files[0]) {
-                const f = e.target.files[0];
-                tempFile = { name: f.name, size: (f.size / 1024).toFixed(1) + ' KB' };
-                document.getElementById('file-text').innerText = "¡Archivo listo!";
-                document.getElementById('file-name').innerText = f.name;
+        window.app_del = (id) => {
+            if(confirm('¿Eliminar?')) {
+                transactions = transactions.filter(t => t.id !== id);
+                invoices = invoices.filter(i => i.txId !== id);
+                renderAll();
             }
-        });
+        };
 
-        document.getElementById('tx-form').addEventListener('submit', async (e) => {
+        document.getElementById('tx-form').onsubmit = (e) => {
             e.preventDefault();
-            const id = document.getElementById('edit-id').value || Date.now().toString();
-            const btn = document.getElementById('save-btn');
-            btn.disabled = true;
-            btn.innerText = "Sincronizando...";
-
-            const data = {
+            const id = Date.now().toString();
+            const newTx = {
                 id,
-                date: document.getElementById('date').value,
-                amount: parseFloat(document.getElementById('amount').value),
-                description: document.getElementById('description').value,
-                category: document.getElementById('category').value,
-                type: document.querySelector('input[name="type"]:checked').value
+                type: document.getElementById('f-type').value,
+                amount: parseFloat(document.getElementById('f-amount').value),
+                date: document.getElementById('f-date').value,
+                desc: document.getElementById('f-desc').value,
+                cat: document.getElementById('f-cat').value
             };
-
-            const ref = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions', id);
-            await setDoc(ref, data);
-
-            if(tempFile) {
-                const iId = Date.now().toString();
-                const iRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices', iId);
-                await setDoc(iRef, { ...tempFile, id: iId, transactionId: id, uploadDate: new Date().toLocaleDateString() });
+            transactions.push(newTx);
+            
+            const file = document.getElementById('f-file').files[0];
+            if(file) {
+                invoices.push({ txId: id, name: file.name, date: new Date().toLocaleDateString() });
             }
 
-            btn.disabled = false;
-            window.closeModal();
-        });
-
-        window.updateMonthly = updateMonthly;
-        startApp();
-        document.getElementById('date').valueAsDate = new Date();
-
+            renderAll();
+            closeModal();
+        };
     </script>
 </body>
 </html>
