@@ -609,7 +609,9 @@
                             ${!isAnnulled ? `
                                 <button onclick="window.editTx('${t.id}')" class="text-blue-400 hover:text-blue-600 transition-all" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
                                 <button onclick="window.annulTx('${t.id}')" class="text-orange-400 hover:text-orange-600 transition-all" title="Anular"><i class="fa-solid fa-ban"></i></button>
-                            ` : ''}
+                            ` : `
+                                <button onclick="window.revertAnnulTx('${t.id}')" class="text-green-400 hover:text-green-600 transition-all" title="Revertir Anulación"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+                            `}
                             <button onclick="window.delTx('${t.id}')" class="text-red-300 hover:text-red-500 transition-all" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </td></tr>`;
@@ -627,7 +629,6 @@
 
         window.annulTx = async (id) => {
             const tx = transactions.find(t => t.id === id); if (!tx || tx.status === 'annulled') return;
-            // Protección por contraseña
             const authOk = await window.verifyAccess();
             if (!authOk) return;
 
@@ -635,8 +636,16 @@
             if(confirmed) { tx.status = 'annulled'; tx.paid = false; await saveAndSync(tx); }
         };
 
+        window.revertAnnulTx = async (id) => {
+            const tx = transactions.find(t => t.id === id); if (!tx || tx.status !== 'annulled') return;
+            const authOk = await window.verifyAccess();
+            if (!authOk) return;
+
+            const confirmed = await window.showConfirm('¿Deseas activar nuevamente este registro anulado? Volverá a sumar en tus balances.');
+            if(confirmed) { tx.status = 'active'; await saveAndSync(tx); }
+        };
+
         window.delTx = async (id) => {
-            // Protección por contraseña
             const authOk = await window.verifyAccess();
             if (!authOk) return;
 
