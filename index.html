@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiContabilidad Pro - conta-dc2c1 Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .nav-item.active { background-color: #eff6ff; color: #2563eb; border-right: 4px solid #2563eb; }
+        #loading-overlay { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s ease; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .logo-container img { width: 100%; height: 100%; object-fit: contain; }
+        .row-annulled { opacity: 0.6; background-color: #f9fafb; text-decoration: line-through; color: #9ca3af; }
+        .company-pill { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; }
+        .pill-bts { background: #dcfce7; color: #166534; }
+        .pill-carlos { background: #fef9c3; color: #854d0e; }
+        #auth-screen { z-index: 9000; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen flex">
+
+    <!-- Pantalla de Carga -->
+    <div id="loading-overlay">
+        <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p id="loading-text" class="text-gray-500 font-medium">Sincronizando con conta-dc2c1...</p>
+    </div>
+
+    <!-- Pantalla de Autenticación -->
+    <div id="auth-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
+                    <i class="fa-solid fa-cloud-bolt text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800">MiContabilidad Cloud</h2>
+                <p class="text-slate-500 text-sm mt-1">Accede a tus datos desde cualquier dispositivo</p>
+            </div>
+            
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Correo Electrónico</label>
+                    <input type="email" id="auth-email" class="w-full border-2 border-slate-100 p-3 rounded-xl outline-none focus:border-blue-500 transition-all font-medium" placeholder="ejemplo@correo.com" required>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Contraseña</label>
+                    <input type="password" id="auth-password" class="w-full border-2 border-slate-100 p-3 rounded-xl outline-none focus:border-blue-500 transition-all font-medium" placeholder="••••••••" required>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" id="auth-submit-btn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-xl hover:bg-blue-700 transition-all active:scale-95">
+                        Iniciar Sesión
+                    </button>
+                </div>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <button id="toggle-auth-mode" class="text-blue-600 text-xs font-bold hover:underline">
+                    ¿No tienes cuenta? Regístrate aquí
+                </button>
+            </div>
+            <p id="auth-error" class="text-red-500 text-[10px] font-bold text-center mt-4 hidden uppercase tracking-wider"></p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="bg-white w-64 hidden md:flex flex-col shadow-xl z-10">
+        <div class="p-6 border-b flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <i class="fa-solid fa-cloud-bolt text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-gray-900 leading-none">MiConta</h1>
+                <p class="text-[9px] text-green-600 font-bold uppercase tracking-tighter">Cloud Sincronizado</p>
+            </div>
+        </div>
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <p class="px-4 text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Dashboards</p>
+            <button onclick="switchView('dashboard-total')" id="nav-dashboard-total" class="nav-item active w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                <i class="fa-solid fa-chart-line w-5 text-center"></i> Global
+            </button>
+            <button onclick="switchView('dashboard-monthly')" id="nav-dashboard-monthly" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                <i class="fa-solid fa-calendar-days w-5 text-center"></i> Mensual
+            </button>
+            
+            <p class="px-4 text-[10px] font-bold text-gray-400 uppercase mt-6 mb-2 tracking-widest">Gestión</p>
+            <button onclick="switchView('transactions')" id="nav-transactions" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                <i class="fa-solid fa-list-ul w-5 text-center"></i> Movimientos
+            </button>
+            
+            <div>
+                <button onclick="switchView('transactions-income')" id="nav-transactions-income" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                    <i class="fa-solid fa-circle-arrow-up w-5 text-center text-green-500"></i> Ingresos
+                </button>
+                <div class="pl-4 mt-1 space-y-1">
+                    <button onclick="switchView('transactions-pending')" id="nav-transactions-pending" class="nav-item w-full flex items-center gap-3 px-4 py-2 text-xs font-medium rounded-lg transition-all">
+                        <i class="fa-solid fa-clock w-4 text-center text-amber-500"></i> Pendientes
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="switchView('transactions-expense')" id="nav-transactions-expense" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                <i class="fa-solid fa-circle-arrow-down w-5 text-center text-red-500"></i> Gastos
+            </button>
+            <button onclick="switchView('invoices')" id="nav-invoices" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                <i class="fa-solid fa-file-invoice w-5 text-center"></i> Facturas
+            </button>
+            
+            <p class="px-4 text-[10px] font-bold text-gray-400 uppercase mt-6 mb-2 tracking-widest">Sistema</p>
+            <button onclick="switchView('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all">
+                <i class="fa-solid fa-gears w-5 text-center"></i> Configuración
+            </button>
+        </nav>
+        <div class="p-4 border-t bg-gray-50">
+            <p class="text-[9px] font-bold text-gray-400 uppercase mb-1">Sesión iniciada como</p>
+            <p id="user-display-email" class="text-[10px] font-bold text-blue-600 truncate mb-2">Cargando...</p>
+            <button onclick="handleLogout()" class="w-full py-2 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase hover:bg-red-50 hover:text-red-600 transition-all">Cerrar Sesión</button>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6 z-20">
+            <div class="flex items-center gap-4">
+                <h2 id="header-ctx" class="font-bold text-gray-700 uppercase text-xs tracking-wider">Dashboard Global</h2>
+                <div class="h-8 w-[1px] bg-gray-200"></div>
+                <select id="company-context-selector" onchange="renderAll()" class="bg-blue-50 border-none text-blue-700 text-xs font-black rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none uppercase">
+                    <option value="bts">BTSMEDIC SA de CV</option>
+                    <option value="carlos">Carlos Eduardo Aguilar</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="sync-icon" class="text-green-500 text-[10px] font-bold uppercase flex items-center gap-1 opacity-0 transition-opacity">
+                    <i class="fa-solid fa-cloud-check text-sm"></i> Sincronizado
+                </div>
+                <button onclick="openModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 transition">
+                    + Nuevo Registro
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6" id="main-content">
+            <!-- VISTA GLOBAL -->
+            <div id="view-dashboard-total" class="fade-in space-y-6">
+                <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ingreso Bruto</p>
+                        <p class="text-xl font-bold text-gray-900 mt-1" id="g-inc">$0.00</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
+                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Líquido Cobrado</p>
+                        <p class="text-xl font-bold text-blue-800 mt-1" id="g-liquid">$0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Gastos Realizados</p>
+                        <p class="text-xl font-bold text-gray-900 mt-1" id="g-exp">$0.00</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-100">
+                        <p class="text-[10px] font-bold text-green-600 uppercase">Cobrado Total</p>
+                        <p class="text-xl font-bold text-green-700 mt-1" id="g-paid">$0.00</p>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100 cursor-pointer hover:bg-amber-100 transition-all group" onclick="switchView('transactions-pending')">
+                        <p class="text-[10px] font-bold text-amber-600 uppercase flex items-center justify-between">
+                            <span>Por Cobrar</span>
+                            <i class="fa-solid fa-arrow-right-long opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </p>
+                        <p class="text-xl font-bold text-amber-700 mt-1" id="g-debt">$0.00</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-blue-600 p-4 rounded-xl shadow-md text-white border border-blue-500">
+                        <p class="text-[10px] font-bold opacity-80 uppercase tracking-widest">Saldo en Cuenta (Real)</p>
+                        <p class="text-lg font-bold mt-1" id="g-bal">$0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-bold text-purple-400 uppercase tracking-widest">IVA Pendiente (13%)</p>
+                        <p class="text-lg font-bold text-purple-600 mt-1" id="g-iva">$0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Renta Pendiente (2%)</p>
+                        <p class="text-lg font-bold text-gray-600 mt-1" id="g-ren">$0.00</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm lg:col-span-2 min-h-[300px]">
+                        <canvas id="globalChart"></canvas>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm">
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Recientes</h3>
+                        <div id="recent-list" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA MENSUAL -->
+            <div id="view-dashboard-monthly" class="hidden fade-in space-y-6">
+                <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-700 uppercase text-xs tracking-widest">Análisis Mensual</h3>
+                    <input type="month" id="month-selector" onchange="renderAll()" class="border px-3 py-1 rounded-lg font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase">Venta Mes</p>
+                        <p class="text-xl font-bold text-gray-900" id="m-inc">$0.00</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
+                        <p class="text-[10px] font-bold text-blue-600 uppercase">Líquido Mes</p>
+                        <p class="text-xl font-bold text-blue-800" id="m-liquid">$0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase">Gastos Mes</p>
+                        <p class="text-xl font-bold text-gray-900" id="m-exp">$0.00</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-100">
+                        <p class="text-[10px] font-bold text-green-600 uppercase">Cobrado Mes</p>
+                        <p class="text-xl font-bold text-green-700" id="m-paid">$0.00</p>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100 cursor-pointer hover:bg-amber-100 transition-all group" onclick="switchView('transactions-pending')">
+                        <p class="text-[10px] font-bold text-amber-600 uppercase flex items-center justify-between">
+                            <span>Pendiente Mes</span>
+                            <i class="fa-solid fa-arrow-right-long opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </p>
+                        <p class="text-xl font-bold text-amber-700" id="m-debt">$0.00</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="bg-blue-600 p-4 rounded-xl shadow-md text-white border border-blue-500">
+                        <p class="text-[10px] font-bold opacity-80 uppercase">Saldo en Cuenta Mes</p>
+                        <p class="text-lg font-bold" id="m-bal">$0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative group">
+                        <p class="text-[10px] font-bold text-purple-400 uppercase">IVA Mes</p>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-lg font-bold text-purple-600" id="m-iva">$0.00</p>
+                            <button id="btn-pay-iva" onclick="window.toggleTaxPaid('iva')" class="text-[9px] font-black uppercase px-2 py-1 rounded transition-all shadow-sm">Esperando...</button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative group">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase">Renta Mes</p>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-lg font-bold text-gray-600" id="m-ren">$0.00</p>
+                            <button id="btn-pay-renta" onclick="window.toggleTaxPaid('renta')" class="text-[9px] font-black uppercase px-2 py-1 rounded transition-all shadow-sm">Esperando...</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA TRANSACCIONES -->
+            <div id="view-transactions" class="hidden fade-in space-y-4">
+                <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    <div class="relative w-full sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="tx-search" oninput="renderTable()" placeholder="Buscar cliente, número de doc..." class="w-full pl-10 pr-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all">
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <select id="company-filter" onchange="renderTable()" class="bg-white border rounded-lg text-[10px] font-bold px-2 py-1 uppercase outline-none">
+                            <option value="all">Todas las Empresas</option>
+                            <option value="bts">BTSMEDIC SA de CV</option>
+                            <option value="carlos">Carlos Eduardo Aguilar</option>
+                        </select>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" id="tx-count">0 registros</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm overflow-x-auto border border-gray-100">
+                    <table class="w-full text-left text-xs min-w-[1400px]">
+                        <thead class="bg-gray-50 text-gray-700 font-bold uppercase tracking-tighter sticky top-0 z-10">
+                            <tr>
+                                <th class="px-4 py-4">Fecha Reg.</th>
+                                <th class="px-4 py-4">Empresa</th>
+                                <th class="px-4 py-4">N° Doc</th>
+                                <th class="px-4 py-4">Estado / Pago</th>
+                                <th class="px-4 py-4">Cliente</th>
+                                <th class="px-4 py-4">Descripción</th>
+                                <th class="px-4 py-4 text-right">Monto Bruto</th>
+                                <th class="px-4 py-4 text-right text-gray-400 italic">IVA (13%)</th>
+                                <th class="px-4 py-4 text-right text-gray-400 italic">Renta (2%)</th>
+                                <th class="px-4 py-4 text-right font-bold">Neto Líquido</th>
+                                <th class="px-4 py-4 text-center">Adjunto</th>
+                                <th class="px-4 py-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tx-table" class="divide-y divide-gray-100"></tbody>
+                        <tfoot id="tx-tfoot" class="bg-gray-50 font-bold border-t-2 border-gray-200"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VISTA FACTURAS -->
+            <div id="view-invoices" class="hidden fade-in">
+                <div id="invoice-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            </div>
+
+            <!-- VISTA CONFIGURACIÓN -->
+            <div id="view-settings" class="hidden fade-in space-y-8">
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-2xl mx-auto">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-blue-600"></i> Seguridad Cloud
+                    </h3>
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+                        <div>
+                            <p class="text-sm font-bold text-gray-700">Contraseña Maestra</p>
+                            <p class="text-xs text-gray-500">Protege acciones críticas como borrar datos.</p>
+                        </div>
+                        <button onclick="window.setupPassword()" class="px-4 py-2 bg-white border border-gray-200 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all uppercase shadow-sm">
+                            Gestionar Seguridad
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-red-100 max-w-2xl mx-auto">
+                    <h3 class="text-xl font-bold text-red-600 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Mantenimiento
+                    </h3>
+                    <button onclick="window.deleteAllDataWithPrompt()" class="w-full py-4 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> REINICIAR TODA LA CUENTA CLOUD
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL REGISTRO -->
+    <div id="tx-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="text-xl font-bold text-gray-800 mb-6" id="m-title">Nueva Operación Cloud</h3>
+            <form id="tx-form" class="space-y-4">
+                <input type="hidden" id="edit-id">
+                <div class="flex bg-gray-100 p-1 rounded-xl">
+                    <button type="button" onclick="setType('income')" id="btn-inc" class="flex-1 py-2 rounded-lg font-bold text-xs bg-white text-green-600 shadow-sm transition-all">INGRESO</button>
+                    <button type="button" onclick="setType('expense')" id="btn-exp" class="flex-1 py-2 rounded-lg font-bold text-xs text-gray-500 transition-all">GASTO</button>
+                    <input type="hidden" id="f-type" value="income">
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Empresa</label>
+                    <select id="f-company" class="w-full border p-2.5 rounded-xl bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" required>
+                        <option value="">Selecciona empresa...</option>
+                        <option value="bts">BTSMEDIC SA de CV</option>
+                        <option value="carlos">Carlos Eduardo Aguilar</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Monto Bruto ($)</label>
+                        <input type="number" step="0.01" id="f-amount" placeholder="0.00" class="w-full border p-2.5 rounded-xl font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Fecha</label>
+                        <input type="date" id="f-date" class="w-full border p-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Documento</label>
+                        <select id="f-docType" class="w-full border p-2.5 rounded-xl bg-white text-sm outline-none">
+                            <option value="Factura">Factura</option>
+                            <option value="Crédito Fiscal">Crédito Fiscal</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Número de Doc.</label>
+                        <input type="text" id="f-invNum" placeholder="Ej: 001-002" class="w-full border p-2.5 rounded-xl text-sm outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cliente / Proveedor</label>
+                    <input type="text" id="f-client" placeholder="Nombre de entidad" class="w-full border p-2.5 rounded-xl outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Descripción</label>
+                    <input type="text" id="f-desc" placeholder="Detalle del movimiento" class="w-full border p-2.5 rounded-xl outline-none" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4 items-end">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Categoría</label>
+                        <select id="f-cat" class="w-full border p-2.5 rounded-xl bg-white text-sm outline-none">
+                            <option>Ventas</option><option>Servicios</option><option>Suministros</option><option>Alquiler</option><option>Otros</option>
+                        </select>
+                    </div>
+                    <div id="paid-check-container" class="flex items-center h-[42px] px-2 bg-gray-50 rounded-xl border">
+                        <label class="flex items-center gap-2 cursor-pointer w-full">
+                            <input type="checkbox" id="f-paid" class="w-4 h-4 text-blue-600 rounded">
+                            <span class="text-[10px] font-bold text-gray-600 uppercase tracking-tighter">¿Ya cobrado?</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="border-t pt-4">
+                    <label class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <i class="fa-solid fa-camera text-gray-400"></i>
+                        <span id="file-label" class="text-sm text-gray-600">Adjuntar Comprobante Cloud</span>
+                        <input type="file" id="f-file" class="hidden" accept="image/*,.pdf" capture="environment">
+                    </label>
+                    <p id="file-status" class="text-[9px] text-gray-400 mt-1 text-center italic"></p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Cerrar</button>
+                    <button type="submit" id="submit-btn" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg">Sincronizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIGURACIÓN DE TU PROYECTO
+        const firebaseConfig = {
+          apiKey: "AIzaSyAl9LSxzy6IR2PNu1nFvzpWOxjd8NYRn0I",
+          authDomain: "conta-dc2c1.firebaseapp.com",
+          databaseURL: "https://conta-dc2c1-default-rtdb.firebaseio.com",
+          projectId: "conta-dc2c1",
+          storageBucket: "conta-dc2c1.firebasestorage.app",
+          messagingSenderId: "407927602756",
+          appId: "1:407927602756:web:152561d78b46aae7f34611",
+          measurementId: "G-H52LL8F1T0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'conta-dc2c1';
+
+        // Variables de estado
+        let userId = null;
+        let isRegistering = false;
+        let transactions = [], invoices = [], taxStatuses = {}, masterPassword = "";
+        let currentTxFilter = 'all', globalChart = null;
+
+        const COMPANIES = { 'bts': 'BTSMEDIC SA de CV', 'carlos': 'Carlos Eduardo Aguilar' };
+        const format = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
+
+        // --- Gestión de Autenticación ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                userId = user.uid;
+                document.getElementById('user-display-email').textContent = user.email;
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('loading-overlay').classList.remove('hidden');
+                setupCloudListeners(user.uid);
+            } else {
+                userId = null;
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        });
+
+        const authForm = document.getElementById('auth-form');
+        authForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-password').value;
+            const errEl = document.getElementById('auth-error');
+            errEl.classList.add('hidden');
+
+            try {
+                if (isRegistering) {
+                    await createUserWithEmailAndPassword(auth, email, pass);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                }
+            } catch (error) {
+                errEl.innerText = "Error: " + error.message;
+                errEl.classList.remove('hidden');
+            }
+        };
+
+        document.getElementById('toggle-auth-mode').onclick = () => {
+            isRegistering = !isRegistering;
+            document.getElementById('auth-submit-btn').innerText = isRegistering ? "Crear Cuenta" : "Iniciar Sesión";
+            document.getElementById('toggle-auth-mode').innerText = isRegistering ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate aquí";
+        };
+
+        window.handleLogout = () => {
+            if(confirm("¿Seguro que deseas cerrar sesión?")) {
+                signOut(auth);
+            }
+        };
+
+        // --- Gestión Cloud ---
+        function setupCloudListeners(uid) {
+            const root = `artifacts/${appId}/users/${uid}`;
+            onSnapshot(collection(db, root, 'transactions'), snap => { 
+                transactions = snap.docs.map(d => d.data()); 
+                renderAll(); 
+                notifySync();
+                document.getElementById('loading-overlay').classList.add('hidden');
+            });
+            onSnapshot(collection(db, root, 'invoices'), snap => { invoices = snap.docs.map(d => d.data()); renderAll(); });
+            onSnapshot(collection(db, root, 'taxStatus'), snap => { snap.docs.forEach(d => taxStatuses[d.id] = d.data()); renderAll(); });
+            getDoc(doc(db, root, 'settings', 'security')).then(d => { if(d.exists()) masterPassword = d.data().password || ""; });
+        }
+
+        function notifySync() {
+            const icon = document.getElementById('sync-icon');
+            if(icon) { icon.style.opacity = '1'; setTimeout(() => icon.style.opacity = '0', 2000); }
+        }
+
+        async function saveCloud(col, docId, data) {
+            if(!userId) return;
+            await setDoc(doc(db, `artifacts/${appId}/users/${userId}`, col, docId), data);
+        }
+
+        // --- Lógica de Negocio ---
+        function calculateNet(t) { return t.docType === 'Otros' ? t.amount : (t.amount - (t.amount * 0.13) - (t.amount * 0.02)); }
+
+        window.renderAll = () => {
+            const activeCo = document.getElementById('company-context-selector').value;
+            const activeTxs = transactions.filter(t => t.status !== 'annulled' && t.company === activeCo);
+            
+            let bruto = 0, exp = 0, paid = 0, debt = 0, liquid = 0, ivaGlob = 0, renGlob = 0;
+            activeTxs.forEach(t => {
+                const taxable = t.docType !== 'Otros';
+                if(t.type === 'income') {
+                    bruto += t.amount;
+                    if(taxable) { ivaGlob += (t.amount * 0.13); renGlob += (t.amount * 0.02); }
+                    if(t.paid) { paid += t.amount; liquid += calculateNet(t); } else { debt += t.amount; }
+                } else { exp += t.amount; }
+            });
+
+            const setV = (id, v) => { const el = document.getElementById(id); if(el) el.innerText = v; };
+            setV('g-inc', format(bruto)); setV('g-liquid', format(liquid)); setV('g-exp', format(exp));
+            setV('g-paid', format(paid)); setV('g-debt', format(debt)); setV('g-bal', format(liquid - exp));
+            setV('g-iva', format(ivaGlob)); setV('g-ren', format(renGlob));
+
+            const ctx = document.getElementById('globalChart').getContext('2d');
+            if(globalChart) globalChart.destroy();
+            globalChart = new Chart(ctx, { type: 'bar', data: { labels: ['Saldos Consolidados'], datasets: [{label:'Entrada Líquida', data:[liquid], backgroundColor:'#3b82f6'}, {label:'Gastos Totales', data:[exp], backgroundColor:'#ef4444'}]}, options: { responsive: true, maintainAspectRatio: false } });
+
+            document.getElementById('recent-list').innerHTML = [...activeTxs].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(t => `<div class="flex justify-between p-3 bg-gray-50 rounded-xl text-[10px]"><div class="font-bold uppercase">${t.cliente}</div><div class="font-bold ${t.type==='income'?'text-green-600':'text-red-600'}">${format(t.amount)}</div></div>`).join('');
+
+            const body = document.getElementById('tx-table');
+            const search = document.getElementById('tx-search').value.toLowerCase();
+            const cFilt = document.getElementById('company-filter').value;
+            
+            const filtered = transactions.filter(t => {
+                const sM = (t.cliente + t.desc + t.invNum).toLowerCase().includes(search);
+                const tM = currentTxFilter === 'all' || (currentTxFilter === 'pending' ? (t.type === 'income' && !t.paid) : t.type === currentTxFilter);
+                const cM = cFilt === 'all' || t.company === cFilt;
+                return sM && tM && cM;
+            });
+
+            let sumIngBruto = 0, sumNetoTotal = 0;
+            body.innerHTML = filtered.sort((a,b) => new Date(b.date) - new Date(a.date)).map(t => {
+                const isInc = t.type === 'income', isAnn = t.status === 'annulled';
+                const net = isInc ? calculateNet(t) : -t.amount;
+                if(!isAnn && isInc) sumIngBruto += t.amount;
+                if(!isAnn) sumNetoTotal += net;
+                
+                return `<tr class="${isAnn?'row-annulled':''} border-b hover:bg-gray-50">
+                    <td class="px-4 py-4 whitespace-nowrap">${t.date}</td>
+                    <td class="px-4 py-4 uppercase font-bold text-[9px] text-blue-500">${t.company}</td>
+                    <td class="px-4 py-4 font-bold text-slate-700">${t.invNum || '-'}</td>
+                    <td class="px-4 py-4">
+                        ${isAnn ? '<span class="text-red-400 font-bold">ANULADA</span>' : (isInc ? `<button onclick="window.togglePaid('${t.id}')" class="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter ${t.paid?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}">${t.paid?'COBRADO':'DEUDA'}</button>` : '<span class="text-slate-400 font-bold">EGRESO</span>')}
+                    </td>
+                    <td class="px-4 py-4 font-bold uppercase">${t.cliente}</td>
+                    <td class="px-4 py-4 text-slate-500">${t.desc}</td>
+                    <td class="px-4 py-4 text-right font-bold">${format(t.amount)}</td>
+                    <td class="px-4 py-4 text-right text-gray-400 italic">${isInc && t.docType !== 'Otros' ? format(t.amount*0.13) : '-'}</td>
+                    <td class="px-4 py-4 text-right text-gray-400 italic">${isInc && t.docType !== 'Otros' ? format(t.amount*0.02) : '-'}</td>
+                    <td class="px-4 py-4 text-right font-black ${isInc?'text-blue-600':'text-red-500'}">${format(net)}</td>
+                    <td class="px-4 py-4 text-center">${invoices.some(i => i.txId === t.id) ? '📎' : '-'}</td>
+                    <td class="px-4 py-4 flex justify-center gap-3">
+                        <button onclick="window.editTx('${t.id}')" class="hover:scale-110 transition-transform">✏️</button>
+                        <button onclick="window.delTx('${t.id}')" class="hover:scale-110 transition-transform">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            document.getElementById('tx-tfoot').innerHTML = `<tr><td colspan="6" class="p-4 text-right font-black uppercase text-[10px]">Total Ingresos Brutos:</td><td class="p-4 text-right font-black text-slate-900">${format(sumIngBruto)}</td><td colspan="2"></td><td class="p-4 text-right font-black text-slate-900">${format(sumNetoTotal)}</td><td colspan="2"></td></tr>`;
+        };
+
+        // --- UI ---
+        window.switchView = (v) => {
+            if(v==='transactions') currentTxFilter='all';
+            else if(v.includes('income')) currentTxFilter='income';
+            else if(v.includes('expense')) currentTxFilter='expense';
+            else if(v.includes('pending')) currentTxFilter='pending';
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            if(document.getElementById(`nav-${v}`)) document.getElementById(`nav-${v}`).classList.add('active');
+            document.querySelectorAll('.fade-in').forEach(el => el.classList.add('hidden'));
+            if(v.startsWith('transactions')) document.getElementById('view-transactions').classList.remove('hidden');
+            else if(document.getElementById(`view-${v}`)) document.getElementById(`view-${v}`).classList.remove('hidden');
+            window.renderAll();
+        };
+
+        window.openModal = () => { 
+            document.getElementById('tx-modal').classList.remove('hidden'); 
+            document.getElementById('tx-form').reset(); 
+            document.getElementById('f-company').disabled = false; 
+            document.getElementById('f-date').valueAsDate = new Date();
+        };
+        window.closeModal = () => document.getElementById('tx-modal').classList.add('hidden');
+
+        window.togglePaid = async (id) => {
+            const tx = transactions.find(t => t.id === id); if(!tx) return;
+            tx.paid = !tx.paid;
+            await saveCloud('transactions', tx.id, tx);
+        };
+
+        document.getElementById('tx-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('edit-id').value;
+            const id = editId || Date.now().toString();
+            const company = document.getElementById('f-company').value;
+            const invNum = document.getElementById('f-invNum').value;
+
+            if(transactions.some(t => t.company === company && t.invNum === invNum && invNum !== "" && t.id !== id && t.status !== 'annulled')) {
+                alert(`Número de documento ${invNum} duplicado para la empresa seleccionada.`); return;
+            }
+
+            const tx = {
+                id, company, type: document.getElementById('f-type').value, 
+                amount: parseFloat(document.getElementById('f-amount').value), 
+                date: document.getElementById('f-date').value, 
+                docType: document.getElementById('f-docType').value,
+                invNum, desc: document.getElementById('f-desc').value,
+                cliente: document.getElementById('f-client').value,
+                cat: document.getElementById('f-cat').value,
+                paid: document.getElementById('f-paid').checked,
+                status: 'active'
+            };
+
+            await saveCloud('transactions', tx.id, tx);
+            closeModal();
+        };
+
+        window.onload = () => {
+            const now = new Date();
+            document.getElementById('month-selector').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        };
+        
+        window.setType = (t) => {
+            document.getElementById('f-type').value = t;
+            const isInc = t==='income';
+            document.getElementById('btn-inc').className = isInc ? 'flex-1 py-2 rounded-lg font-bold text-xs bg-white text-green-600 shadow-sm' : 'flex-1 py-2 text-gray-500 font-bold text-xs';
+            document.getElementById('btn-exp').className = !isInc ? 'flex-1 py-2 rounded-lg font-bold text-xs bg-white text-red-600 shadow-sm' : 'flex-1 py-2 text-gray-500 font-bold text-xs';
+            document.getElementById('paid-check-container').style.display = isInc ? 'flex' : 'none';
+        };
+    </script>
+</body>
+</html>
