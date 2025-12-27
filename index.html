@@ -1,0 +1,225 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  onSnapshot, 
+  addDoc, 
+  query, 
+  serverTimestamp,
+  deleteDoc
+} from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { Send, Trash2, User, Wifi, WifiOff, MessageSquare } from 'lucide-react';
+
+// Configuración de Firebase desde el entorno
+const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+// Inicialización de Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 1. Manejo de Autenticación (Regla 3)
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Error de autenticación:", err);
+        setError("Error al iniciar sesión de forma segura.");
+      }
+    };
+
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Sincronización de Datos en Tiempo Real (Regla 1 y 2)
+  useEffect(() => {
+    if (!user) return;
+
+    // Ruta estricta: /artifacts/{appId}/public/data/{collectionName}
+    const messagesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+    
+    // Escucha en tiempo real
+    const unsubscribe = onSnapshot(
+      messagesCollection,
+      (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Ordenar en memoria (Regla 2: No usar orderBy en la consulta de Firestore)
+        const sortedDocs = docs.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || 0;
+          const timeB = b.createdAt?.seconds || 0;
+          return timeB - timeA;
+        });
+        
+        setMessages(sortedDocs);
+        setError(null);
+      },
+      (err) => {
+        console.error("Error en Snapshot:", err);
+        setError("Error de conexión con la base de datos.");
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !user) return;
+
+    try {
+      const messagesCollection = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+      await addDoc(messagesCollection, {
+        text: newMessage,
+        userId: user.uid,
+        userName: `Usuario ${user.uid.substring(0, 4)}`,
+        createdAt: serverTimestamp()
+      });
+      setNewMessage('');
+    } catch (err) {
+      setError("No se pudo enviar el mensaje.");
+    }
+  };
+
+  const deleteMessage = async (id) => {
+    try {
+      const messageDoc = doc(db, 'artifacts', appId, 'public', 'data', 'messages', id);
+      await deleteDoc(messageDoc);
+    } catch (err) {
+      setError("No tienes permisos para borrar esto.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-slate-600 font-medium">Estableciendo conexión segura...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 p-4 md:p-8 font-sans">
+      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        {/* Header */}
+        <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <MessageSquare size={24} />
+              Muro Sincronizado
+            </h1>
+            <p className="text-blue-100 text-sm opacity-90">Los cambios se ven en todos los dispositivos</p>
+          </div>
+          <div className="flex items-center gap-2 bg-blue-700 px-3 py-1.5 rounded-full text-xs">
+            {error ? <WifiOff size={14} className="text-red-300" /> : <Wifi size={14} className="text-green-300" />}
+            <span>{user?.uid ? `ID: ${user.uid.substring(0, 8)}...` : 'Conectando...'}</span>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Input Area */}
+        <form onSubmit={sendMessage} className="p-6 border-b border-slate-100 bg-slate-50 flex gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Escribe algo para compartir..."
+            className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+          <button
+            type="submit"
+            disabled={!newMessage.trim()}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-colors shadow-md shadow-blue-200"
+          >
+            <Send size={20} />
+          </button>
+        </form>
+
+        {/* Messages List */}
+        <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-white">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
+              <MessageSquare size={48} className="opacity-20" />
+              <p>No hay mensajes todavía. ¡Sé el primero!</p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div 
+                key={msg.id} 
+                className={`flex flex-col ${msg.userId === user?.uid ? 'items-end' : 'items-start'}`}
+              >
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 relative group transition-all duration-200 ${
+                  msg.userId === user?.uid 
+                  ? 'bg-blue-500 text-white rounded-tr-none shadow-md shadow-blue-100' 
+                  : 'bg-slate-100 text-slate-800 rounded-tl-none'
+                }`}>
+                  <p className="text-sm font-semibold mb-1 opacity-70 flex items-center gap-1">
+                    <User size={12} />
+                    {msg.userName}
+                  </p>
+                  <p className="leading-relaxed">{msg.text}</p>
+                  
+                  {msg.userId === user?.uid && (
+                    <button 
+                      onClick={() => deleteMessage(msg.id)}
+                      className="absolute -left-10 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-400 mt-1 px-1">
+                  {msg.createdAt ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString() : 'Enviando...'}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto mt-6 text-center text-slate-400 text-xs">
+        <p>Esta aplicación utiliza Firebase Firestore con sincronización automática.</p>
+        <p className="mt-1">Tu ID completo para depuración: <span className="font-mono">{user?.uid}</span></p>
+      </div>
+    </div>
+  );
+}
